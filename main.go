@@ -3,6 +3,8 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
+	"strings"
 
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/checker/decls"
@@ -25,8 +27,14 @@ func main() {
 		log.Fatalf("environment creation error: %s\n", err)
 	}
 
+	var exp string
+	if len(os.Args) > 1 {
+		exp = strings.Join(os.Args[1:], " ")
+	} else {
+		exp = `ce.type == "com.github.pull_request.create"`
+	}
+
 	// Parse and check the expression.
-	exp := `ce.type == "com.github.pull_request.create"`
 	fmt.Println("expr:", exp)
 	p, iss := e.Parse(exp)
 	if iss != nil && iss.Err() != nil {
