@@ -4,10 +4,9 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/golang/protobuf/proto"
-	descpb "github.com/golang/protobuf/protoc-gen-go/descriptor"
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/checker/decls"
+	"github.com/grantr/cel-playground/dev_knative"
 )
 
 func parseProtos() {
@@ -29,21 +28,12 @@ message CloudEvent {
 `
 
 func main() {
-	// Generate the proto object for CE envelope
-	fd := &descpb.FileDescriptorProto{}
-	desc := proto.FileDescriptor("ce.proto")
-	// desc := []byte(ceEnvelopeProto)
-	if err := proto.Unmarshal(desc, fd); err != nil {
-		log.Fatalf("bad descriptor: %v\n", err)
-	}
-
 	// Create the CEL environment with declarations for the input attributes and
 	// the desired extension functions. In many cases the desired functionality will
 	// be present in a built-in function.
 	e, err := cel.NewEnv(
 		cel.Container("dev.knative"),
-		cel.IsolateTypes(),
-		cel.Types(fd),
+		cel.Types(&dev_knative.CloudEvent{}),
 		cel.Declarations(
 			decls.NewIdent("ce", decls.NewObjectType("dev.knative.CloudEvent"), nil),
 		),
@@ -84,9 +74,9 @@ func main() {
 	// Evaluate the program against some inputs. Note: the details return is not used.
 	out, _, err := prg.Eval(cel.Vars(map[string]interface{}{
 		// Native values are converted to CEL values under the covers.
-		"ce": map[string]interface{}{
-			"type":   "com.github.pull_request.create",
-			"source": "github.com/knative/eventing/pulls/21",
+		"ce": &dev_knative.CloudEvent{
+			Type:   "com.github.pull_request.create",
+			Source: "github.com/grantr/cel-playground/pulls/21",
 		},
 	}))
 	if err != nil {
