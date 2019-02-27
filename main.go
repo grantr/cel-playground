@@ -8,6 +8,7 @@ import (
 
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/checker/decls"
+	"github.com/google/cel-go/common/types"
 	"github.com/grantr/cel-playground/dev_knative"
 )
 
@@ -76,5 +77,6 @@ func main() {
 		log.Fatalf("runtime error: %s\n", err)
 	}
 
-	fmt.Println("out:", out)
+	fmt.Printf("out: %#v\n", out)
+	fmt.Printf("pass: %#v\n", out == types.True)
 }
