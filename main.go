@@ -61,13 +61,16 @@ func main() {
 		log.Fatalf("program creation error: %s\n", err)
 	}
 
+	cloudEvent := &dev_knative.CloudEvent{
+		Type:   "com.github.pull_request.create",
+		Source: "github.com/grantr/cel-playground/pulls/21",
+	}
+	fmt.Println("cloudEvent: ", cloudEvent.String())
+
 	// Evaluate the program against some inputs. Note: the details return is not used.
 	out, _, err := prg.Eval(cel.Vars(map[string]interface{}{
 		// Native values are converted to CEL values under the covers.
-		"ce": &dev_knative.CloudEvent{
-			Type:   "com.github.pull_request.create",
-			Source: "github.com/grantr/cel-playground/pulls/21",
-		},
+		"ce": cloudEvent,
 	}))
 	if err != nil {
 		log.Fatalf("runtime error: %s\n", err)
