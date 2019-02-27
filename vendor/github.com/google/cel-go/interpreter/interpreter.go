@@ -37,7 +37,7 @@ type Interpretable interface {
 }
 
 // InterpretableDecorator is a functional interface for decorating or replacing
-// Interpretable expresssion nodes at construction time.
+// Interpretable expression nodes at construction time.
 type InterpretableDecorator func(Interpretable) (Interpretable, error)
 
 // Interpreter generates a new Interpretable from a checked or unchecked expression.

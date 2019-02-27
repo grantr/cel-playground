@@ -36,8 +36,9 @@ type protoObj struct {
 // NewObject returns an object based on a proto.Message value which handles
 // conversion between protobuf type values and expression type values.
 // Objects support indexing and iteration.
+// Note:  only uses default Db.
 func NewObject(value proto.Message) ref.Val {
-	typeDesc, err := pb.DescribeValue(value)
+	typeDesc, err := pb.DefaultDb.DescribeValue(value)
 	if err != nil {
 		panic(err)
 	}

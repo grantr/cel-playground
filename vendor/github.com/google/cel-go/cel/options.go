@@ -19,8 +19,6 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/google/cel-go/common/packages"
-	"github.com/google/cel-go/common/types"
-	"github.com/google/cel-go/common/types/pb"
 	"github.com/google/cel-go/common/types/ref"
 	"github.com/google/cel-go/interpreter"
 	"github.com/google/cel-go/interpreter/functions"
@@ -102,6 +100,17 @@ func Container(pkg string) EnvOption {
 	}
 }
 
+// IsolateTypes copies the global protobuf registry into a copy private
+// to this Env.  Subsequent Type() calls will modify the protobuf registry
+// in this Env only.  Note that privately-registered protobufs cannot
+// be instantiated with types.NewObject().
+func IsolateTypes() EnvOption {
+	return func(e *env) (*env, error) {
+		e.types.IsolateTypes()
+		return e, nil
+	}
+}
+
 // Types adds one or more type declarations to the environment, allowing for construction of
 // type-literals whose definitions are included in the common expression built-in set.
 //
@@ -117,15 +126,9 @@ func Types(addTypes ...interface{}) EnvOption {
 		for _, t := range addTypes {
 			switch t.(type) {
 			case proto.Message:
-				fd, err := pb.DescribeFile(t.(proto.Message))
+				err := e.types.RegisterMessage(t.(proto.Message))
 				if err != nil {
 					return nil, err
-				}
-				for _, typeName := range fd.GetTypeNames() {
-					err := e.types.RegisterType(types.NewObjectTypeValue(typeName))
-					if err != nil {
-						return nil, err
-					}
 				}
 			case ref.Type:
 				err := e.types.RegisterType(t.(ref.Type))

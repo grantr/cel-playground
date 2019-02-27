@@ -19,18 +19,20 @@ import (
 
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
-	structpb "github.com/golang/protobuf/ptypes/struct"
 	"github.com/google/cel-go/common/types/pb"
 	"github.com/google/cel-go/common/types/ref"
 
+	descpb "github.com/golang/protobuf/protoc-gen-go/descriptor"
 	anypb "github.com/golang/protobuf/ptypes/any"
 	dpb "github.com/golang/protobuf/ptypes/duration"
+	structpb "github.com/golang/protobuf/ptypes/struct"
 	tpb "github.com/golang/protobuf/ptypes/timestamp"
 	exprpb "google.golang.org/genproto/googleapis/api/expr/v1alpha1"
 )
 
 type protoTypeProvider struct {
 	revTypeMap map[string]ref.Type
+	pbdb       *pb.Db
 }
 
 // NewProvider accepts a list of proto message instances and returns a type
@@ -38,7 +40,9 @@ type protoTypeProvider struct {
 // message that proto depends upon in its FileDescriptor.
 func NewProvider(types ...proto.Message) ref.TypeProvider {
 	p := &protoTypeProvider{
-		revTypeMap: make(map[string]ref.Type)}
+		revTypeMap: make(map[string]ref.Type),
+		pbdb:       pb.DefaultDb,
+	}
 	p.RegisterType(
 		BoolType,
 		BytesType,
@@ -55,7 +59,7 @@ func NewProvider(types ...proto.Message) ref.TypeProvider {
 		UintType)
 
 	for _, msgType := range types {
-		fd, err := pb.DescribeFile(msgType)
+		fd, err := p.pbdb.DescribeFile(msgType)
 		if err != nil {
 			panic(err)
 		}
@@ -67,7 +71,7 @@ func NewProvider(types ...proto.Message) ref.TypeProvider {
 }
 
 func (p *protoTypeProvider) EnumValue(enumName string) ref.Val {
-	enumVal, err := pb.DescribeEnum(enumName)
+	enumVal, err := p.pbdb.DescribeEnum(enumName)
 	if err != nil {
 		return NewErr("unknown enum name '%s'", enumName)
 	}
@@ -80,7 +84,7 @@ func (p *protoTypeProvider) FindFieldType(t *exprpb.Type,
 	default:
 		return nil, false
 	case *exprpb.Type_MessageType:
-		msgType, err := pb.DescribeType(t.GetMessageType())
+		msgType, err := p.pbdb.DescribeType(t.GetMessageType())
 		if err != nil {
 			return nil, false
 		}
@@ -99,14 +103,14 @@ func (p *protoTypeProvider) FindIdent(identName string) (ref.Val, bool) {
 	if t, found := p.revTypeMap[identName]; found {
 		return t.(ref.Val), true
 	}
-	if enumVal, err := pb.DescribeEnum(identName); err == nil {
+	if enumVal, err := p.pbdb.DescribeEnum(identName); err == nil {
 		return Int(enumVal.Value()), true
 	}
 	return nil, false
 }
 
 func (p *protoTypeProvider) FindType(typeName string) (*exprpb.Type, bool) {
-	if _, err := pb.DescribeType(typeName); err != nil {
+	if _, err := p.pbdb.DescribeType(typeName); err != nil {
 		return nil, false
 	}
 	if typeName != "" && typeName[0] == '.' {
@@ -119,9 +123,12 @@ func (p *protoTypeProvider) FindType(typeName string) (*exprpb.Type, bool) {
 					MessageType: typeName}}}}, true
 }
 
-func (p *protoTypeProvider) NewValue(typeName string,
-	fields map[string]ref.Val) ref.Val {
-	td, err := pb.DescribeType(typeName)
+func (p *protoTypeProvider) IsolateTypes() {
+	p.pbdb = pb.NewDb()
+}
+
+func (p *protoTypeProvider) NewValue(typeName string, fields map[string]ref.Val) ref.Val {
+	td, err := p.pbdb.DescribeType(typeName)
 	if err != nil {
 		return NewErr("unknown type '%s'", typeName)
 	}
@@ -157,6 +164,32 @@ func (p *protoTypeProvider) NewValue(typeName string,
 		refField.Set(reflect.ValueOf(fieldValue))
 	}
 	return NewObject(value.Interface().(proto.Message))
+}
+
+func (p *protoTypeProvider) RegisterDescriptor(fileDesc *descpb.FileDescriptorProto) error {
+	fd, err := p.pbdb.DescribeDescriptor(fileDesc)
+	if err != nil {
+		return err
+	}
+	return p.registerAllTypes(fd)
+}
+
+func (p *protoTypeProvider) RegisterMessage(message proto.Message) error {
+	fd, err := p.pbdb.DescribeFile(message)
+	if err != nil {
+		return err
+	}
+	return p.registerAllTypes(fd)
+}
+
+func (p *protoTypeProvider) registerAllTypes(fd *pb.FileDescription) error {
+	for _, typeName := range fd.GetTypeNames() {
+		err := p.RegisterType(NewObjectTypeValue(typeName))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (p *protoTypeProvider) RegisterType(types ...ref.Type) error {

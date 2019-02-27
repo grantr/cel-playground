@@ -32,23 +32,41 @@ import (
 	wrapperspb "github.com/golang/protobuf/ptypes/wrappers"
 )
 
+// Db maps from file / message / enum name to file description.
+type Db struct {
+	revFileDescriptorMap map[string]*FileDescription
+}
+
+var (
+	// DefaultDb used at evaluation time or unless overridden at check time.
+	DefaultDb = &Db{
+		revFileDescriptorMap: make(map[string]*FileDescription),
+	}
+)
+
+// NewDb creates a new Db with an empty type name to file description map.
+func NewDb() *Db {
+	pbdb := &Db{
+		revFileDescriptorMap: make(map[string]*FileDescription),
+	}
+	for k, v := range DefaultDb.revFileDescriptorMap {
+		pbdb.revFileDescriptorMap[k] = v
+	}
+	return pbdb
+}
+
 // DescribeEnum takes a qualified enum name and returns an EnumDescription.
-func DescribeEnum(enumName string) (*EnumDescription, error) {
+func (pbdb *Db) DescribeEnum(enumName string) (*EnumDescription, error) {
 	enumName = sanitizeProtoName(enumName)
-	if fd, found := revFileDescriptorMap[enumName]; found {
+	if fd, found := pbdb.revFileDescriptorMap[enumName]; found {
 		return fd.GetEnumDescription(enumName)
 	}
 	return nil, fmt.Errorf("unrecognized enum '%s'", enumName)
 }
 
-// DescribeFile takes a protocol buffer message and indexes all of the message
-// types and enum values contained within the message's file descriptor.
-func DescribeFile(message proto.Message) (*FileDescription, error) {
-	if fd, found := revFileDescriptorMap[proto.MessageName(message)]; found {
-		return fd, nil
-	}
-	fileDesc, _ := descriptor.ForMessage(message.(descriptor.Message))
-	fd, err := describeFileInternal(fileDesc)
+// DescribeDescriptor produces a FileDescription from a FileDescriptorProto.
+func (pbdb *Db) DescribeDescriptor(fileDesc *descpb.FileDescriptorProto) (*FileDescription, error) {
+	fd, err := pbdb.describeFileInternal(fileDesc)
 	if err != nil {
 		return nil, err
 	}
@@ -58,10 +76,20 @@ func DescribeFile(message proto.Message) (*FileDescription, error) {
 	return fd, nil
 }
 
+// DescribeFile takes a protocol buffer message and indexes all of the message
+// types and enum values contained within the message's file descriptor.
+func (pbdb *Db) DescribeFile(message proto.Message) (*FileDescription, error) {
+	if fd, found := pbdb.revFileDescriptorMap[proto.MessageName(message)]; found {
+		return fd, nil
+	}
+	fileDesc, _ := descriptor.ForMessage(message.(descriptor.Message))
+	return pbdb.DescribeDescriptor(fileDesc)
+}
+
 // DescribeType provides a TypeDescription given a qualified type name.
-func DescribeType(typeName string) (*TypeDescription, error) {
+func (pbdb *Db) DescribeType(typeName string) (*TypeDescription, error) {
 	typeName = sanitizeProtoName(typeName)
-	if fd, found := revFileDescriptorMap[typeName]; found {
+	if fd, found := pbdb.revFileDescriptorMap[typeName]; found {
 		return fd.GetTypeDescription(typeName)
 	}
 	return nil, fmt.Errorf("unrecognized type '%s'", typeName)
@@ -69,8 +97,8 @@ func DescribeType(typeName string) (*TypeDescription, error) {
 
 // DescribeValue takes an instance of a protocol buffer message and returns
 // the associated TypeDescription.
-func DescribeValue(value proto.Message) (*TypeDescription, error) {
-	fd, err := DescribeFile(value)
+func (pbdb *Db) DescribeValue(value proto.Message) (*TypeDescription, error) {
+	fd, err := pbdb.DescribeFile(value)
 	if err != nil {
 		return nil, err
 	}
@@ -78,29 +106,12 @@ func DescribeValue(value proto.Message) (*TypeDescription, error) {
 	return fd.GetTypeDescription(typeName)
 }
 
-var (
-	// map from file / message / enum name to file description.
-	fileDescriptorMap    = make(map[string]*FileDescription)
-	revFileDescriptorMap = make(map[string]*FileDescription)
-)
-
-func describeFileInternal(fileDesc *descpb.FileDescriptorProto) (*FileDescription, error) {
+func (pbdb *Db) describeFileInternal(fileDesc *descpb.FileDescriptorProto) (*FileDescription, error) {
 	fd := &FileDescription{
+		pbdb:  pbdb,
 		desc:  fileDesc,
 		types: make(map[string]*TypeDescription),
 		enums: make(map[string]*EnumDescription)}
-	fileDescriptorMap[fileDesc.GetName()] = fd
-
-	for _, dep := range fileDesc.Dependency {
-		if _, found := fileDescriptorMap[dep]; !found {
-			nestedDesc, err := fileDescriptor(dep)
-			if err != nil {
-				panic(err)
-			}
-			describeFileInternal(nestedDesc)
-		}
-	}
-
 	return fd, nil
 }
 
@@ -128,9 +139,9 @@ func init() {
 	// The following subset of message types is enough to ensure that all well-known types can
 	// resolved in the runtime, since describing the value results in describing the whole file
 	// where the message is declared.
-	DescribeValue(&anypb.Any{})
-	DescribeValue(&durpb.Duration{})
-	DescribeValue(&tspb.Timestamp{})
-	DescribeValue(&structpb.Value{})
-	DescribeValue(&wrapperspb.BoolValue{})
+	DefaultDb.DescribeValue(&anypb.Any{})
+	DefaultDb.DescribeValue(&durpb.Duration{})
+	DefaultDb.DescribeValue(&tspb.Timestamp{})
+	DefaultDb.DescribeValue(&structpb.Value{})
+	DefaultDb.DescribeValue(&wrapperspb.BoolValue{})
 }

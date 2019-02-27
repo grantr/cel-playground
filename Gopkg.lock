@@ -29,7 +29,8 @@
   version = "v1.3.0"
 
 [[projects]]
-  digest = "1:61e14600ee601e5e04ba395b93f3df71c11350d97416c2609293b8cdf3cf0fb1"
+  branch = "master"
+  digest = "1:f6e01c23fd7706a60fd426f1cc3b09cd94a1e144cef11170e3d101113249c710"
   name = "github.com/google/cel-go"
   packages = [
     "cel",
@@ -50,8 +51,7 @@
     "parser/gen",
   ]
   pruneopts = "UT"
-  revision = "81d826ac4515a47311b5e8734449e3a6ac7afceb"
-  version = "v0.1.0"
+  revision = "8b13e9bc21da535eb789b18ddef74cbd89ede3c7"
 
 [[projects]]
   branch = "master"
@@ -156,12 +156,10 @@
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
+    "github.com/golang/protobuf/proto",
+    "github.com/golang/protobuf/protoc-gen-go/descriptor",
     "github.com/google/cel-go/cel",
     "github.com/google/cel-go/checker/decls",
-    "github.com/google/cel-go/common/types",
-    "github.com/google/cel-go/common/types/ref",
-    "github.com/google/cel-go/interpreter/functions",
-    "google.golang.org/genproto/googleapis/api/expr/v1alpha1",
   ]
   solver-name = "gps-cdcl"
   solver-version = 1

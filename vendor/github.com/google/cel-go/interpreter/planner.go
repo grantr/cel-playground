@@ -573,7 +573,6 @@ func (p *planner) idResolver(sel *exprpb.Expr_Select) func(Activation) (ref.Val,
 		case *exprpb.Expr_IdentExpr:
 			ident = op.GetIdentExpr().Name + "." + ident
 			resolvedIdent = true
-			break
 		case *exprpb.Expr_SelectExpr:
 			nested := op.GetSelectExpr()
 			ident = nested.GetField() + "." + ident

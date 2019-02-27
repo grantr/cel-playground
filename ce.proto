@@ -1,0 +1,11 @@
+syntax = "proto3";
+
+package dev.knative;
+
+message CloudEvent {
+  string specversion = 1;
+  string type = 2;
+  string source = 3;
+  string id = 4;
+  string time = 5;
+}

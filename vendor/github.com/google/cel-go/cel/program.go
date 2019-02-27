@@ -119,7 +119,7 @@ func newProgram(e *env, ast Ast, opts ...ProgramOption) (Program, error) {
 				interpreter: interp}
 			return initInterpretable(clone, ast, decs)
 		}
-		return &progGen{factory: factory}, nil
+		return initProgGen(factory)
 	}
 	// Enable state tracking last since it too requires the factory approach but is less
 	// featured than the ExhaustiveEval decorator.
@@ -134,9 +134,20 @@ func newProgram(e *env, ast Ast, opts ...ProgramOption) (Program, error) {
 				interpreter: interp}
 			return initInterpretable(clone, ast, decs)
 		}
-		return &progGen{factory: factory}, nil
+		return initProgGen(factory)
 	}
 	return initInterpretable(p, ast, decorators)
+}
+
+// initProgGen tests the factory object by calling it once and returns a factory-based Program if
+// the test is successful.
+func initProgGen(factory progFactory) (Program, error) {
+	// Test the factory to make sure that configuration errors are spotted at config
+	_, err := factory(interpreter.NewEvalState())
+	if err != nil {
+		return nil, err
+	}
+	return &progGen{factory: factory}, nil
 }
 
 // initIterpretable creates a checked or unchecked interpretable depending on whether the Ast
@@ -193,18 +204,20 @@ func (gen *progGen) Eval(vars interpreter.Activation) (ref.Val, EvalDetails, err
 	// new EvalState instance for each call to ensure that unique evaluations yield unique stateful
 	// results.
 	state := interpreter.NewEvalState()
+	det := &evalDetails{state: state}
 
 	// Generate a new instance of the interpretable using the factory configured during the call to
-	// newProgram().
+	// newProgram(). It is incredibly unlikely that the factory call will generate an error given
+	// the factory test performed within the Program() call.
 	p, err := gen.factory(state)
 	if err != nil {
-		return nil, nil, err
+		return nil, det, err
 	}
 
-	// Evaluate the input, returning the result and the 'state' as EvalDetails.
+	// Evaluate the input, returning the result and the 'state' within EvalDetails.
 	v, _, err := p.Eval(vars)
 	if err != nil {
-		return nil, nil, err
+		return nil, det, err
 	}
-	return v, &evalDetails{state: state}, nil
+	return v, det, nil
 }
