@@ -9,24 +9,6 @@ import (
 	"github.com/grantr/cel-playground/dev_knative"
 )
 
-func parseProtos() {
-
-}
-
-const ceEnvelopeProto = `
-syntax = "proto3";
-
-package dev.knative;
-
-message CloudEvent {
-  string specversion = 1;
-  string type = 2;
-  string source = 3;
-  string id = 4;
-  string time = 5;
-}
-`
-
 func main() {
 	// Create the CEL environment with declarations for the input attributes and
 	// the desired extension functions. In many cases the desired functionality will
