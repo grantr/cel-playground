@@ -8,7 +8,7 @@ Uses CEL to evaluate expressions against a CloudEvent envelope.
 ce.type == "com.github.pull_request.create"
 ce.source == "foo"
 ce.source != "foo" && ce.type != "bar"
-matches(ce.type, "com.github\..*") # Doesn't work, possibly unimplemented?
+ce.source.matches("com\\.github\\..*") # backslash must be escaped
 ```
 
 ## Default expression
