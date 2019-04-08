@@ -15,6 +15,8 @@
 package cel
 
 import (
+	"fmt"
+
 	"github.com/google/cel-go/common/types"
 	"github.com/google/cel-go/common/types/ref"
 	"github.com/google/cel-go/interpreter"
@@ -26,10 +28,19 @@ import (
 type Program interface {
 	// Eval returns the result of an evaluation of the Ast and environment against the input vars.
 	//
-	// If the evaluation is an error, the result will be nil with a non-nil error.
+	// The vars value may either be an `interpreter.Activation` or a `map[string]interface{}`.
 	//
-	// If the OptTrackState or OptExhaustiveEval is used, the EvalDetails response will be non-nil.
-	Eval(vars interpreter.Activation) (ref.Val, EvalDetails, error)
+	// If the `OptTrackState` or `OptExhaustiveEval` flags are used, the `details` response will
+	// be non-nil. Given this caveat on `details`, the return state from evaluation will be:
+	//
+	// *  `val`, `details`, `nil` - Successful evaluation of a non-error result.
+	// *  `val`, `details`, `err` - Successful evaluation to an error result.
+	// *  `nil`, `details`, `err` - Unsuccessful evaluation.
+	//
+	// An unsuccessful evaluation is typically the result of a series of incompatible `EnvOption`
+	// or `ProgramOption` values used in the creation of the evaluation environment or executable
+	// program.
+	Eval(vars interface{}) (ref.Val, EvalDetails, error)
 }
 
 // EvalDetails holds additional information observed during the Eval() call.
@@ -39,14 +50,9 @@ type EvalDetails interface {
 	State() interpreter.EvalState
 }
 
-// Vars takes an input map of variables and returns an Activation.
-func Vars(vars map[string]interface{}) interpreter.Activation {
-	return interpreter.NewActivation(vars)
-}
-
 // NoVars returns an empty Activation.
 func NoVars() interpreter.Activation {
-	return interpreter.NewActivation(map[string]interface{}{})
+	return interpreter.EmptyActivation()
 }
 
 // evalDetails is the internal implementation of the EvalDetails interface.
@@ -84,7 +90,7 @@ type progGen struct {
 func newProgram(e *env, ast Ast, opts ...ProgramOption) (Program, error) {
 	// Build the dispatcher, interpreter, and default program value.
 	disp := interpreter.NewDispatcher()
-	interp := interpreter.NewInterpreter(disp, e.pkg, e.types)
+	interp := interpreter.NewInterpreter(disp, e.pkg, e.provider, e.adapter)
 	p := &prog{
 		env:         e,
 		dispatcher:  disp,
@@ -93,6 +99,9 @@ func newProgram(e *env, ast Ast, opts ...ProgramOption) (Program, error) {
 	// Configure the program via the ProgramOption values.
 	var err error
 	for _, opt := range opts {
+		if opt == nil {
+			return nil, fmt.Errorf("program options should be non-nil")
+		}
 		p, err = opt(p)
 		if err != nil {
 			return nil, err
@@ -183,8 +192,12 @@ func initInterpretable(
 }
 
 // Eval implements the Program interface method.
-func (p *prog) Eval(vars interpreter.Activation) (ref.Val, EvalDetails, error) {
+func (p *prog) Eval(input interface{}) (ref.Val, EvalDetails, error) {
 	// Build a hierarchical activation if there are default vars set.
+	vars, err := interpreter.NewAdaptingActivation(p.adapter, input)
+	if err != nil {
+		return nil, nil, err
+	}
 	if p.defaultVars != nil {
 		vars = interpreter.NewHierarchicalActivation(p.defaultVars, vars)
 	}
@@ -193,13 +206,13 @@ func (p *prog) Eval(vars interpreter.Activation) (ref.Val, EvalDetails, error) {
 	// translates the CEL value to a Go error response. This interface does not quite match the
 	// RPC signature which allows for multiple errors to be returned, but should be sufficient.
 	if types.IsError(v) {
-		return nil, nil, v.Value().(error)
+		return v, nil, v.Value().(error)
 	}
 	return v, nil, nil
 }
 
 // Eval implements the Program interface method.
-func (gen *progGen) Eval(vars interpreter.Activation) (ref.Val, EvalDetails, error) {
+func (gen *progGen) Eval(input interface{}) (ref.Val, EvalDetails, error) {
 	// The factory based Eval() differs from the standard evaluation model in that it generates a
 	// new EvalState instance for each call to ensure that unique evaluations yield unique stateful
 	// results.
@@ -215,9 +228,9 @@ func (gen *progGen) Eval(vars interpreter.Activation) (ref.Val, EvalDetails, err
 	}
 
 	// Evaluate the input, returning the result and the 'state' within EvalDetails.
-	v, _, err := p.Eval(vars)
+	v, _, err := p.Eval(input)
 	if err != nil {
-		return nil, det, err
+		return v, det, err
 	}
 	return v, det, nil
 }

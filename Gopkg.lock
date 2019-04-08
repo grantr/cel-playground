@@ -10,10 +10,11 @@
   version = "4.7.2"
 
 [[projects]]
-  digest = "1:d90d7ec83c1f5b139fb2640eed81a682333b99cfbaff276547a16d9f68bab900"
+  digest = "1:4c0eb4f657c9fe2609b96cd9a3a820fd2454ec1c7d62667ec899ace5c27c913c"
   name = "github.com/golang/protobuf"
   packages = [
     "descriptor",
+    "jsonpb",
     "proto",
     "protoc-gen-go/descriptor",
     "ptypes",
@@ -30,7 +31,7 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:f6e01c23fd7706a60fd426f1cc3b09cd94a1e144cef11170e3d101113249c710"
+  digest = "1:a226dcc4a70e1e022a3da5c2c41e0170bc50647edd07edafc84f0ce067b13e2f"
   name = "github.com/google/cel-go"
   packages = [
     "cel",
@@ -51,11 +52,11 @@
     "parser/gen",
   ]
   pruneopts = "UT"
-  revision = "8b13e9bc21da535eb789b18ddef74cbd89ede3c7"
+  revision = "6a046a90da28fd89ea6f11b5834b84d5143ca6db"
 
 [[projects]]
   branch = "master"
-  digest = "1:4512c74e2c934a151fa9246cdc565d29611f53295bfb05e7a6275e80ee540a0c"
+  digest = "1:a7550c619a7f9701bc2f0b2c866668a207cfb693a2834796f723d2c78b514372"
   name = "golang.org/x/net"
   packages = [
     "context",
@@ -67,15 +68,15 @@
     "trace",
   ]
   pruneopts = "UT"
-  revision = "afe646ca25a4a688bba916cc14caef4b53c0b856"
+  revision = "eb5bcb51f2a31c7d5141d810b70815c05d9c9146"
 
 [[projects]]
   branch = "master"
-  digest = "1:d0e9a312c4610a508569ab25e54d34600b1a96d19b1866ece104ffdf1c1b9d2c"
+  digest = "1:cf353a5a9ffb2d6f850e9c773e25388a425a70c270546480427ed069e87b136a"
   name = "golang.org/x/sys"
   packages = ["unix"]
   pruneopts = "UT"
-  revision = "775f8194d0f9e65c46913c7be783d3d95a29333c"
+  revision = "4b34438f7a67ee5f45cc6132e2bad873a20324e9"
 
 [[projects]]
   digest = "1:0c56024909189aee3364b7f21a95a27459f718aa7c199a5c111c36cfffd9eaef"
@@ -103,17 +104,17 @@
 
 [[projects]]
   branch = "master"
-  digest = "1:3a2d3599a8d0f0ddab8a7714bc28f809ac734f67e26abad939f7370c56d00e29"
+  digest = "1:0a9f54a371c74d78ff8960e8bf52c276b8542f7891ffbc15cdf8d8dbf7610909"
   name = "google.golang.org/genproto"
   packages = [
     "googleapis/api/expr/v1alpha1",
     "googleapis/rpc/status",
   ]
   pruneopts = "UT"
-  revision = "fc2db5cae922db113989ef87b5b859cc8a179f59"
+  revision = "64821d5d210748c883cd2b809589555ae4654203"
 
 [[projects]]
-  digest = "1:cbc746de4662c66fd24a037501bd65aa0f8ad0bfca0c92576e0abb88864e3741"
+  digest = "1:c00eb80d7b152379c3e94c38d82b29deca98b1d0f53e4e20362589b7fcbffa07"
   name = "google.golang.org/grpc"
   packages = [
     ".",
@@ -149,15 +150,15 @@
     "tap",
   ]
   pruneopts = "UT"
-  revision = "2fdaae294f38ed9a121193c51ec99fecd3b13eb7"
-  version = "v1.19.0"
+  revision = "3507fb8e1a5ad030303c106fef3a47c9fdad16ad"
+  version = "v1.19.1"
 
 [solve-meta]
   analyzer-name = "dep"
   analyzer-version = 1
   input-imports = [
-    "github.com/golang/protobuf/proto",
-    "github.com/golang/protobuf/protoc-gen-go/descriptor",
+    "github.com/golang/protobuf/jsonpb",
+    "github.com/golang/protobuf/ptypes/struct",
     "github.com/google/cel-go/cel",
     "github.com/google/cel-go/checker/decls",
   ]

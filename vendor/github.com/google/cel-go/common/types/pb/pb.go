@@ -44,7 +44,7 @@ var (
 	}
 )
 
-// NewDb creates a new Db with an empty type name to file description map.
+// NewDb creates a new `pb.Db` with an empty type name to file description map.
 func NewDb() *Db {
 	pbdb := &Db{
 		revFileDescriptorMap: make(map[string]*FileDescription),
@@ -55,17 +55,9 @@ func NewDb() *Db {
 	return pbdb
 }
 
-// DescribeEnum takes a qualified enum name and returns an EnumDescription.
-func (pbdb *Db) DescribeEnum(enumName string) (*EnumDescription, error) {
-	enumName = sanitizeProtoName(enumName)
-	if fd, found := pbdb.revFileDescriptorMap[enumName]; found {
-		return fd.GetEnumDescription(enumName)
-	}
-	return nil, fmt.Errorf("unrecognized enum '%s'", enumName)
-}
-
-// DescribeDescriptor produces a FileDescription from a FileDescriptorProto.
-func (pbdb *Db) DescribeDescriptor(fileDesc *descpb.FileDescriptorProto) (*FileDescription, error) {
+// RegisterDescriptor produces a `FileDescription` from a `FileDescriptorProto` and registers the
+// message and enum types into the `pb.Db`.
+func (pbdb *Db) RegisterDescriptor(fileDesc *descpb.FileDescriptorProto) (*FileDescription, error) {
 	fd, err := pbdb.describeFileInternal(fileDesc)
 	if err != nil {
 		return nil, err
@@ -76,34 +68,43 @@ func (pbdb *Db) DescribeDescriptor(fileDesc *descpb.FileDescriptorProto) (*FileD
 	return fd, nil
 }
 
-// DescribeFile takes a protocol buffer message and indexes all of the message
-// types and enum values contained within the message's file descriptor.
-func (pbdb *Db) DescribeFile(message proto.Message) (*FileDescription, error) {
-	if fd, found := pbdb.revFileDescriptorMap[proto.MessageName(message)]; found {
+// RegisterMessage produces a `FileDescription` from a `message` and registers the message and all
+// other definitions within the message file into the `pb.Db`.
+func (pbdb *Db) RegisterMessage(message proto.Message) (*FileDescription, error) {
+	typeName := sanitizeProtoName(proto.MessageName(message))
+	if fd, found := pbdb.revFileDescriptorMap[typeName]; found {
 		return fd, nil
 	}
 	fileDesc, _ := descriptor.ForMessage(message.(descriptor.Message))
-	return pbdb.DescribeDescriptor(fileDesc)
+	return pbdb.RegisterDescriptor(fileDesc)
 }
 
-// DescribeType provides a TypeDescription given a qualified type name.
+// DescribeFile gets the `FileDescription` for the `message` type if it exists in the `pb.Db`.
+func (pbdb *Db) DescribeFile(message proto.Message) (*FileDescription, error) {
+	typeName := sanitizeProtoName(proto.MessageName(message))
+	if fd, found := pbdb.revFileDescriptorMap[typeName]; found {
+		return fd, nil
+	}
+	return nil, fmt.Errorf("unrecognized proto type name '%s'", typeName)
+}
+
+// DescribeEnum takes a qualified enum name and returns an `EnumDescription` if it exists in the
+// `pb.Db`.
+func (pbdb *Db) DescribeEnum(enumName string) (*EnumDescription, error) {
+	enumName = sanitizeProtoName(enumName)
+	if fd, found := pbdb.revFileDescriptorMap[enumName]; found {
+		return fd.GetEnumDescription(enumName)
+	}
+	return nil, fmt.Errorf("unrecognized enum '%s'", enumName)
+}
+
+// DescribeType returns a `TypeDescription` for the `typeName` if it exists in the `pb.Db`.
 func (pbdb *Db) DescribeType(typeName string) (*TypeDescription, error) {
 	typeName = sanitizeProtoName(typeName)
 	if fd, found := pbdb.revFileDescriptorMap[typeName]; found {
 		return fd.GetTypeDescription(typeName)
 	}
 	return nil, fmt.Errorf("unrecognized type '%s'", typeName)
-}
-
-// DescribeValue takes an instance of a protocol buffer message and returns
-// the associated TypeDescription.
-func (pbdb *Db) DescribeValue(value proto.Message) (*TypeDescription, error) {
-	fd, err := pbdb.DescribeFile(value)
-	if err != nil {
-		return nil, err
-	}
-	typeName := proto.MessageName(value)
-	return fd.GetTypeDescription(typeName)
 }
 
 func (pbdb *Db) describeFileInternal(fileDesc *descpb.FileDescriptorProto) (*FileDescription, error) {
@@ -139,9 +140,9 @@ func init() {
 	// The following subset of message types is enough to ensure that all well-known types can
 	// resolved in the runtime, since describing the value results in describing the whole file
 	// where the message is declared.
-	DefaultDb.DescribeValue(&anypb.Any{})
-	DefaultDb.DescribeValue(&durpb.Duration{})
-	DefaultDb.DescribeValue(&tspb.Timestamp{})
-	DefaultDb.DescribeValue(&structpb.Value{})
-	DefaultDb.DescribeValue(&wrapperspb.BoolValue{})
+	DefaultDb.RegisterMessage(&anypb.Any{})
+	DefaultDb.RegisterMessage(&durpb.Duration{})
+	DefaultDb.RegisterMessage(&tspb.Timestamp{})
+	DefaultDb.RegisterMessage(&structpb.Value{})
+	DefaultDb.RegisterMessage(&wrapperspb.BoolValue{})
 }

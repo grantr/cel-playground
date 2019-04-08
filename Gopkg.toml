@@ -24,10 +24,12 @@
 #   go-tests = true
 #   unused-packages = true
 
+# required = ["github.com/gogo/protobuf/types"]
+
 [prune]
   go-tests = true
   unused-packages = true
-  
+
 [[constraint]]
-  name = "github.com/google/cel-go"
-  branch = "master"
+  name = "github.com/golang/protobuf"
+  version = "=1.3.0"

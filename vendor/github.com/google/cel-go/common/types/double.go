@@ -111,9 +111,6 @@ func (d Double) Divide(other ref.Val) ref.Val {
 	if DoubleType != other.Type() {
 		return ValOrErr(other, "no such overload")
 	}
-	if other.(Double) == Double(0) {
-		return NewErr("divide by zero")
-	}
 	return d / other.(Double)
 }
 

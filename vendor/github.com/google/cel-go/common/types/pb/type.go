@@ -30,8 +30,8 @@ type TypeDescription struct {
 	typeName        string
 	file            *FileDescription
 	desc            *descpb.DescriptorProto
-	fields          map[string]*FieldDescription
-	fieldIndices    map[int][]*FieldDescription
+	fields          map[string]*FieldDescription // fields by name (proto)
+	fieldIndices    map[int][]*FieldDescription  // fields by Go struct idx
 	fieldProperties *proto.StructProperties
 	refType         *reflect.Type
 }
@@ -125,6 +125,7 @@ func (td *TypeDescription) getFieldsInfo() (map[string]*FieldDescription,
 			for _, oneofProp := range fieldProps.OneofTypes {
 				desc := fieldDescMap[oneofProp.Prop.OrigName]
 				fd := &FieldDescription{
+					tdesc:     td,
 					desc:      desc,
 					index:     oneofProp.Field,
 					prop:      oneofProp.Prop,
@@ -136,6 +137,7 @@ func (td *TypeDescription) getFieldsInfo() (map[string]*FieldDescription,
 		} else {
 			for fieldName, desc := range fieldDescMap {
 				fd := &FieldDescription{
+					tdesc:  td,
 					desc:   desc,
 					index:  int(desc.GetNumber()),
 					proto3: isProto3}
@@ -218,6 +220,9 @@ func (fd *FieldDescription) IsEnum() bool {
 
 // IsOneof returns true if the field is declared within a oneof block.
 func (fd *FieldDescription) IsOneof() bool {
+	if fd.desc != nil {
+		return fd.desc.OneofIndex != nil
+	}
 	return fd.oneofProp != nil
 }
 
@@ -251,12 +256,15 @@ func (fd *FieldDescription) IsMessage() bool {
 // This method will also return true for map values, so check whether the
 // field is also a map.
 func (fd *FieldDescription) IsRepeated() bool {
-	return fd.prop.Repeated
+	return *fd.desc.Label == descpb.FieldDescriptorProto_LABEL_REPEATED
 }
 
 // OrigName returns the snake_case name of the field as it was declared within
 // the proto. This is the same name format that is expected within expressions.
 func (fd *FieldDescription) OrigName() string {
+	if fd.desc != nil && fd.desc.Name != nil {
+		return *fd.desc.Name
+	}
 	return fd.prop.OrigName
 }
 
