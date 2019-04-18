@@ -1,19 +1,17 @@
 package main
 
 import (
+	"encoding/json"
 	"flag"
 	"fmt"
 	"log"
-	"strings"
 
-	"github.com/golang/protobuf/jsonpb"
-	structpb "github.com/golang/protobuf/ptypes/struct"
 	"github.com/google/cel-go/cel"
 	"github.com/google/cel-go/checker/decls"
 )
 
 const (
-	defaultExpr = `ce.type == "com.github.pull_request.create"`
+	defaultExpr = `ce.type == "com.example.someevent"`
 	defaultCE   = `
 		{
 			"specversion" : "0.2",
@@ -42,11 +40,7 @@ func main() {
 	// the desired extension functions. In many cases the desired functionality will
 	// be present in a built-in function.
 	e, err := cel.NewEnv(
-		//cel.Types(&dev_knative.CloudEvent{}),
-		//cel.Types(&structpb.Struct{}),
-		cel.Declarations(
-			decls.NewIdent("ce", decls.NewObjectType("google.protobuf.Struct"), nil),
-		),
+		cel.Declarations(decls.NewIdent("ce", decls.Dyn, nil)),
 	)
 
 	if err != nil {
@@ -79,22 +73,16 @@ func main() {
 		log.Fatalf("program creation error: %s\n", err)
 	}
 
-	cloudEvent := structpb.Struct{}
-	if err := jsonpb.Unmarshal(strings.NewReader(*ceJSON), &cloudEvent); err != nil {
+	var cloudEvent map[string]interface{}
+	if err := json.Unmarshal([]byte(*ceJSON), &cloudEvent); err != nil {
 		log.Fatalf("json parse error: %s\n", err)
 	}
 	fmt.Printf("cloudEvent Struct: %#v\n", cloudEvent)
-	m := jsonpb.Marshaler{}
-	jce, err := m.MarshalToString(&cloudEvent)
-	if err != nil {
-		log.Fatalf("json marshal error: %s\n", err)
-	}
-	fmt.Printf("cloudEvent marshaled JSON: %s\n", jce)
 
 	// Evaluate the program against some inputs. Note: the details return is not used.
 	out, _, err := prg.Eval(map[string]interface{}{
 		// Native values are converted to CEL values under the covers.
-		"ce": &cloudEvent,
+		"ce": cloudEvent,
 	})
 	if err != nil {
 		log.Fatalf("runtime error: %s\n", err)
